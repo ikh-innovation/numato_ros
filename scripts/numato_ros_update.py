@@ -107,6 +107,38 @@ class GPIO(object):
             return True
         return None
 
+    def read_mult_io(self, pins=[]):
+        try:
+            self.ser_port.write("gpio readall\n\r")
+            res = str(self.ser_port.read(1000))
+            hx = res[res.find("\n"):res.find(">")]
+            bn = bin(int(str(hx), 16))[2:][::-1]
+            result = {pin: self.str_to_bool(bn[pin]) for pin in pins if pin is not None}
+            return result
+        except Exception as e:
+            rospy.logwarn("Cannot read serial: {}".format(e))
+            return {pin: False for pin in pins if pin is not None}
+
+    def read_mult_io_avg(self, pins=[], readtimes=8):
+        try:
+            result = {pin: [] for pin in pins if pin is not None}
+            for _ in range(readtimes):
+                self.ser_port.write("gpio readall\n\r")
+                res = str(self.ser_port.read(1000))
+                hx = res[res.find("\n"):res.find(">")]
+                bn = bin(int(str(hx), 16))[2:][::-1]
+                for pin in pins:
+                    if pin is not None:
+                        result[pin].append(self.str_to_bool(bn[pin]))
+            result_avg = {pin: self.get_avg_bool(result[pin], pin) for pin in result.keys()}
+            return result_avg
+        except Exception as e:
+            rospy.logwarn("Cannot read serial: {}".format(e))
+            return {pin: False for pin in pins if pin is not None}
+
+    def get_avg_bool(self, bool_list, pin):
+        return sum(bool_list) / float(len(bool_list)) > 0.5
+
 
 class DigitalOutput(GPIO):
     def __init__(self, id, configs, ser_port):
@@ -178,17 +210,18 @@ class DigitalInputBumperV2(GPIO):
         if self.pub.get_num_connections() > 0:
             res = self.read_mult_io_avg([self.pin_mappings[key] for key in self.pin_mappings if self.pin_mappings[key]])
             msg = Bumper_v2(
-                low_bumper_center=self.get_result(res[self.pin_mappings['low_center_bumper']]),
-                low_bumper_left=self.get_result(res[self.pin_mappings['low_left_bumper']]),
-                low_bumper_right=self.get_result(res[self.pin_mappings['low_right_bumper']]),
-                high_bumper_center=self.get_result(res[self.pin_mappings['high_center_bumper']]),
-                high_bumper_right=self.get_result(res[self.pin_mappings['high_right_bumper']]),
-                high_bumper_left=self.get_result(res[self.pin_mappings['high_left_bumper']]),
-                bumper_state=self.get_result(res[self.pin_mappings['state_bumper']])
+                low_bumper_center=self.get_avg_bool(res[self.pin_mappings['low_center_bumper']], 'low_center_bumper'),
+                low_bumper_left=self.get_avg_bool(res[self.pin_mappings['low_left_bumper']], 'low_left_bumper'),
+                low_bumper_right=self.get_avg_bool(res[self.pin_mappings['low_right_bumper']], 'low_right_bumper'),
+                high_bumper_center=self.get_avg_bool(res[self.pin_mappings['high_center_bumper']], 'high_center_bumper'),
+                high_bumper_right=self.get_avg_bool(res[self.pin_mappings['high_right_bumper']], 'high_right_bumper'),
+                high_bumper_left=self.get_avg_bool(res[self.pin_mappings['high_left_bumper']], 'high_left_bumper'),
+                bumper_state=self.get_avg_bool(res[self.pin_mappings['state_bumper']], 'state_bumper')
             )
             msg.header.stamp = rospy.Time.now()
             msg.header.frame_id = self.topic_name
             self.pub.publish(msg)
+
 
 class DigitalConstants(GPIO):
     def __init__(self, id, configs, ser_port):
@@ -230,7 +263,7 @@ class NumatoRelayInterface(object):
         obj_list = []
 
         if 'outputs' in configs:
-            obj_list.extend([DigitalOutput(key, configs, self._get_serial_port()) for key in configs['constants']])
+            obj_list.extend([DigitalOutput(key, configs, self._get_serial_port()) for key in configs['outputs']])
 
         if 'inputs' in configs:
             obj_list.extend([DigitalInput(key, configs, self._get_serial_port()) for key in configs['inputs']])
