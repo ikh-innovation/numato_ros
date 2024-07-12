@@ -7,6 +7,7 @@ import sys
 from std_msgs.msg import Bool, Header
 from ikh_ros_msgs.msg import Labjack_dout, Bumper_v2
 import threading
+import time
 
 # Command mapping for GPIO operations
 CMDS = {
@@ -32,8 +33,7 @@ class SerialPortManager(object):
         return self.serial_port
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.serial_port and self.serial_port.isOpen():
-            self.serial_port.close()
+        self.close_serial_port()
 
     def open_serial_port(self):
         """Opens the serial port."""
@@ -42,15 +42,27 @@ class SerialPortManager(object):
             rospy.loginfo("Serial port {} opened successfully.".format(self.port))
         except serial.SerialException as e:
             rospy.logerr("Error opening serial port {}: {}".format(self.port, e))
-            sys.exit(1)  # Exit if the serial port cannot be opened
 
+    def close_serial_port(self):
+        """Closes the serial port if it's open."""
+        if self.serial_port and self.serial_port.isOpen():
+            self.serial_port.close()
+
+    def is_serial_port_open(self):
+        """Checks if the serial port is open."""
+        return self.serial_port and self.serial_port.isOpen()
+
+    def ensure_serial_connection(self):
+        """Ensures that the serial port is open, trying to reopen if disconnected."""
+        if not self.is_serial_port_open():
+            rospy.logwarn("Serial port {} not open. Attempting to reopen.".format(self.port))
+            self.open_serial_port()
 
 class GPIO(object):
-    def __init__(self, ser_port, logic, serial_read_size=25):
-        self.ser_port = ser_port
+    def __init__(self, ser_port_manager, logic, serial_read_size=25):
+        self.ser_port_manager = ser_port_manager
         self.logic = logic
         self.serial_read_size = serial_read_size
-        self.lock = threading.Lock()
 
     def pin_to_index(self, pin):
         """Converts a pin number to an appropriate string or character."""
@@ -60,8 +72,9 @@ class GPIO(object):
         """Reads the state of a specified GPIO pin."""
         with serial_lock:
             try:
-                self.ser_port.write("gpio read {}\n\r".format(self.pin_to_index(pin)))
-                res = self.ser_port.read(self.serial_read_size)
+                self.ser_port_manager.ensure_serial_connection()
+                self.ser_port_manager.serial_port.write("gpio read {}\n\r".format(self.pin_to_index(pin)))
+                res = self.ser_port_manager.serial_port.read(self.serial_read_size)
                 return res[-4]
             except Exception as e:
                 rospy.logwarn("Cannot read serial: {}".format(e))
@@ -70,17 +83,14 @@ class GPIO(object):
     def write_io(self, pin, state):
         """Writes a specified state to a GPIO pin."""
         with serial_lock:
-            self.ser_port.write("gpio {} {}\r".format(CMDS[state], self.pin_to_index(pin)))
-            res = self.ser_port.read(self.serial_read_size)
-            return res
-
-    def reset_serial(self):
-        """Resets the serial port."""
-        with serial_lock:
-            if self.ser_port:
-                self.ser_port.close()
-            self.open_serial_port()
-            rospy.loginfo("Serial port reset successful.")
+            try:
+                self.ser_port_manager.ensure_serial_connection()
+                self.ser_port_manager.serial_port.write("gpio {} {}\r".format(CMDS[state], self.pin_to_index(pin)))
+                res = self.ser_port_manager.serial_port.read(self.serial_read_size)
+                return res
+            except Exception as e:
+                rospy.logwarn("Cannot write to serial: {}".format(e))
+                return None
 
     @staticmethod
     def str_to_bool(value):
@@ -95,8 +105,9 @@ class GPIO(object):
         """Reads the state of multiple GPIO pins."""
         try:
             with serial_lock:
-                self.ser_port.write("gpio readall\n\r")
-            res = str(self.ser_port.read(1000))
+                self.ser_port_manager.ensure_serial_connection()
+                self.ser_port_manager.serial_port.write("gpio readall\n\r")
+            res = str(self.ser_port_manager.serial_port.read(1000))
             hx = res[res.find("\n"):res.find(">")]
             bn = bin(int(str(hx), 16))[2:][::-1]
             result = {pin: self.str_to_bool(bn[pin]) for pin in pins if pin is not None}
@@ -112,8 +123,9 @@ class GPIO(object):
             
             for _ in range(readtimes):
                 with serial_lock:
-                    self.ser_port.write("gpio readall\n\r")
-                res = str(self.ser_port.read(1000))
+                    self.ser_port_manager.ensure_serial_connection()
+                    self.ser_port_manager.serial_port.write("gpio readall\n\r")
+                res = str(self.ser_port_manager.serial_port.read(1000))
                 hx = res[res.find("\n"):res.find(">")]
                 bn = bin(int(str(hx), 16))[2:][::-1]
                 for pin in pins:
@@ -148,8 +160,8 @@ class GPIO(object):
 
 
 class DigitalOutput(GPIO):
-    def __init__(self, id, configs, ser_port):
-        GPIO.__init__(self, ser_port, "Inverted", serial_read_size=25)
+    def __init__(self, id, configs, ser_port_manager):
+        GPIO.__init__(self, ser_port_manager, "Inverted", serial_read_size=25)
         self.id = id
         self.topic_name = configs['outputs'][id]["topic_name"]
         self.pin = configs['outputs'][id]["pin"]
@@ -172,11 +184,10 @@ class DigitalOutput(GPIO):
 
 
 class DigitalInput(GPIO):
-    def __init__(self, id, configs, ser_port):
-        GPIO.__init__(self, ser_port, "Inverted", serial_read_size=25)
+    def __init__(self, id, configs, ser_port_manager):
+        GPIO.__init__(self, ser_port_manager, "Inverted", serial_read_size=25)
         self.id = id
         self.topic_name = configs['inputs'][id]["topic_name"]
-        self.ser_port = ser_port
         self.pub = rospy.Publisher(self.topic_name, Labjack_dout, queue_size=1)
         self.pin = configs['inputs'][id]["pin"]
         self.logic = configs['inputs'][id]["logic"]
@@ -198,11 +209,10 @@ class DigitalInput(GPIO):
 
 
 class DigitalInputBumperV2(GPIO):
-    def __init__(self, id, configs, ser_port):
-        GPIO.__init__(self, ser_port, "Inverted", serial_read_size=25)
+    def __init__(self, id, configs, ser_port_manager):
+        GPIO.__init__(self, ser_port_manager, "Inverted", serial_read_size=25)
         self.id = id
         self.topic_name = configs['bumper_v2'][id]["topic_name"]
-        self.ser_port = ser_port
         self.pub = rospy.Publisher(self.topic_name, Bumper_v2, queue_size=1)
         self.logic = configs['bumper_v2'][id]["logic"]
         self.instance_rate = configs['bumper_v2'][id]["rate"]
@@ -220,36 +230,24 @@ class DigitalInputBumperV2(GPIO):
     def update_publish(self):
         """Reads and publishes the state of multiple bumper sensors."""
         if self.pub.get_num_connections() > 0:
-            res = self.read_mult_io_avg([self.pin_mappings[key] for key in self.pin_mappings if self.pin_mappings[key]],5)
+            res = self.read_mult_io_avg([self.pin_mappings[key] for key in self.pin_mappings if self.pin_mappings[key]], 5)
 
-            header = Header(frame_id=self.topic_name, stamp=rospy.Time.now())
-            _low_bumper_center= res.get(self.pin_mappings['low_center_bumper'],False)
-            _low_bumper_left= res.get(self.pin_mappings['low_left_bumper'],False)
-            _low_bumper_right= res.get(self.pin_mappings['low_right_bumper'],False)
-            _high_bumper_center= res.get(self.pin_mappings['high_center_bumper'],False) 
-            _high_bumper_left= res.get(self.pin_mappings['high_left_bumper'],False) 
-            _high_bumper_right= res.get(self.pin_mappings['high_right_bumper'],False) 
-            _bumper_state= res.get(self.pin_mappings['state_bumper'],False) 
-
-            msg = Bumper_v2()
-            msg.header = Header(frame_id=self.topic_name, stamp=rospy.Time.now())
-            msg.low_bumper_center = int(_low_bumper_center)
             msg = Bumper_v2(
-                header = Header(frame_id=self.topic_name, stamp=rospy.Time.now()),
-                low_bumper_center=_low_bumper_center,
-                low_bumper_left= _low_bumper_left,
-                low_bumper_right= _low_bumper_right,
-                high_bumper_center= _high_bumper_center,
-                high_bumper_left= _high_bumper_left,
-                high_bumper_right= _high_bumper_right,
-                bumper_state= _bumper_state,
+                header=Header(frame_id=self.topic_name, stamp=rospy.Time.now()),
+                low_bumper_center=res.get(self.pin_mappings['low_center_bumper'], False),
+                low_bumper_left=res.get(self.pin_mappings['low_left_bumper'], False),
+                low_bumper_right=res.get(self.pin_mappings['low_right_bumper'], False),
+                high_bumper_center=res.get(self.pin_mappings['high_center_bumper'], False),
+                high_bumper_left=res.get(self.pin_mappings['high_left_bumper'], False),
+                high_bumper_right=res.get(self.pin_mappings['high_right_bumper'], False),
+                bumper_state=res.get(self.pin_mappings['state_bumper'], False),
             )
             self.pub.publish(msg)
 
 
 class DigitalConstants(GPIO):
-    def __init__(self, id, configs, ser_port):
-        GPIO.__init__(self, ser_port, "Normal", serial_read_size=25)
+    def __init__(self, id, configs, ser_port_manager):
+        GPIO.__init__(self, ser_port_manager, "Normal", serial_read_size=25)
         self.id = id
         self.pin = configs['constants'][id]["pin"]
         self.logic = configs['constants'][id]["logic"]
@@ -284,9 +282,8 @@ class NumatoRelayInterface:
         obj_list = []
         for cls, key in [(DigitalOutput, 'outputs'), (DigitalInput, 'inputs'), (DigitalConstants, 'constants'), (DigitalInputBumperV2, 'bumper_v2')]:
             for id in configs.get(key, {}):
-                obj_list.append(cls(id, configs, self.serial_port_manager.serial_port))
+                obj_list.append(cls(id, configs, self.serial_port_manager))
         return obj_list
-
 
     def update(self):
         """Starts threads to update and publish the state of each GPIO object."""
@@ -297,13 +294,11 @@ class NumatoRelayInterface:
             threads.append(thread)
         for thread in threads:
             thread.join()
-    
+
     def run(self):
         while not rospy.is_shutdown():
-            # print("--- Loop --- ")
             self.update()
-            rospy.sleep(1.0/float(self.scriptrate))
-        
+            rospy.sleep(1.0 / float(self.scriptrate))
 
     def __del__(self):
         rospy.loginfo("Shutting down Numato relay interface node.")
@@ -316,6 +311,5 @@ if __name__ == "__main__":
         nri = NumatoRelayInterface()
         nri.run()
         rospy.spin()
-
     except (KeyboardInterrupt, rospy.ROSInterruptException):
         rospy.loginfo("Shutting down Numato relay interface node.")
