@@ -4,22 +4,24 @@ inputs:
     pin: 12
     topic_name: "charging_limit_switch"
     logic: "Normal"
-    rate: 1
+    rate: 1.0
   rain_sensor:
     pin: 7
     topic_name: "rain_sensor"
     logic: "Inverted"
-    rate: 1
+    rate: 1.0
 
 outputs:
   mowing_led_indicator: 
     pin: 30
     topic_name: "mowing_led_indicator"
     logic: "Normal"
+    rate: 0.5
   buzzer: 
     pin: 31
     topic_name: "buzzer"
     logic: "Normal"
+    rate: 0.5
 
 # constants:
   # rain_pull_up: 
