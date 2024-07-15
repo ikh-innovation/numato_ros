@@ -1,10 +1,3 @@
-
-Add the following line to the ```/etc/udev/rules.d/99-custom.rules``
-
-```sh
-SUBSYSTEM=="tty",ACTION=="add", ATTRS{idVendor}=="2a19", ATTRS{idProduct}=="0802", MODE="0777", SYMLINK+="ttyNUMATO"
-```
-
 # Numato Relay Interface ROS Node
 
 ## Overview
@@ -25,6 +18,10 @@ The Numato Relay Interface node is a ROS package designed to interface with a Nu
 3. Install the `pyserial` library if not already installed:
    ```bash
    pip install pyserial
+   ```
+4. Add the following line to the ```/etc/udev/rules.d/99-custom.rules``
+   ```sh
+   SUBSYSTEM=="tty",ACTION=="add", ATTRS{idVendor}=="2a19", ATTRS{idProduct}=="0802", MODE="0777", SYMLINK+="ttyNUMATO"
    ```
 
 ## Node Details
@@ -122,10 +119,10 @@ Main class for managing the overall Numato Relay Interface.
 
 ```xml
 <launch>
-    <node name="numato_driver" pkg="your_package_name" type="numato_driver.py" output="screen">
-        <param name="port" value="/dev/ttyUSB0" />
-        <param name="baudrate" value="19200" />
-        <param name="timeout" value="0.1" />
+    <node name="numato_ros" pkg="numato_ros" type="numato_ros" output="screen">
+        <param name="port" value="/dev/ttyNUMATO" />
+        <param name="baudrate" value="115200" />
+        <param name="timeout" value="0.002" />
         <param name="rate" value="10.0" />
         <param name="inputs" value="$(arg inputs)" />
         <param name="outputs" value="$(arg outputs)" />
