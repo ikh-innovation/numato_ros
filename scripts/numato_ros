@@ -63,8 +63,7 @@ class SerialPortManager(object):
         if self.serial_port and self.serial_port.is_open:
             try:
                 # Perform a non-blocking read to check the connection status
-                with serial_lock:
-                    self.serial_port.read(1)
+                self.serial_port.read(1)
                 return True
             except (OSError, serial.SerialException):
                 return False
@@ -89,7 +88,8 @@ class SerialPortManager(object):
 
     def publish_serial_state(self, event):
         """Publishes the state of the serial port."""
-        state = self.is_serial_port_open()
+        with serial_lock:
+            state = self.is_serial_port_open()
         self.state_publisher.publish(Bool(data=state))
 
 class GPIO(object):
