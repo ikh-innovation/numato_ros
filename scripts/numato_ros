@@ -88,8 +88,7 @@ class SerialPortManager(object):
 
     def publish_serial_state(self, event):
         """Publishes the state of the serial port."""
-        with serial_lock:
-            state = self.is_serial_port_open()
+        state = self.is_serial_port_open()
         self.state_publisher.publish(Bool(data=state))
 
 class GPIO(object):
