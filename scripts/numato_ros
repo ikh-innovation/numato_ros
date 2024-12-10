@@ -63,7 +63,8 @@ class SerialPortManager(object):
         if self.serial_port and self.serial_port.is_open:
             try:
                 # Perform a non-blocking read to check the connection status
-                self.serial_port.read(1)
+                with serial_lock:
+                    self.serial_port.read(1)
                 return True
             except (OSError, serial.SerialException):
                 return False
