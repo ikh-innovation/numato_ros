@@ -85,7 +85,7 @@ Handles GPIO input operations and publishes the pin state to a ROS topic.
 
 - `__init__(configs, serial_device)`: Initializes the input pin configuration.
 - `update_callback()`: Reads the state from the GPIO pin and publishes it.
-- 
+
 ### `DigitalOutput`
 
 Handles GPIO output operations and subscribes to a ROS topic for setting the pin state.
