@@ -16,29 +16,24 @@ outputs:
     pin: 30
     topic_name: "mowing_led_indicator"
     logic: "Normal"
-    rate: 0.5
   buzzer: 
     pin: 31
     topic_name: "buzzer"
     logic: "Normal"
-    rate: 0.5
 
 # constants:
-  # rain_pull_up: 
-  #   pin: 6
-  #   topic_name: "rain_pull_up"
-  #   logic: "Normal"
-  #   value: true
-  # rear_bumper_pull_up: 
-  #   pin: 15
-  #   topic_name: "rear_bumper_pull_up"
-  #   logic: "Normal"
-  #   value: true
-  # front_bumper_pull_up: 
-  #   pin: 23
-  #   topic_name: "front_bumper_pull_up"
-  #   logic: "Normal"
-  #   value: true
+#   rain_pull_up: 
+#     pin: 6
+#     logic: "Normal"
+#     value: true
+#   rear_bumper_pull_up: 
+#     pin: 15
+#     logic: "Normal"
+#     value: true
+#   front_bumper_pull_up: 
+#     pin: 23
+#     logic: "Normal"
+#     value: true
 
 bumper_v2:
   bumper:

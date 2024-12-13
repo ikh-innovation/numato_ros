@@ -2,14 +2,17 @@
 <launch>
     <arg name="driver_port" default="/dev/ttyNUMATO"/>
     <arg name="config_dir" default="$(find numato_ros)/config/io.yaml"/>
-    <arg name="rate" default="10"/>
+    <arg name="poll_rate" default="30"/>
+    <arg name="baud" default="9600"/>
+    <arg name="timeout" default="0.02"/>
+    <arg name="debounce_time" default="0.06"/>   
     
-    
-    <node pkg="numato_ros" name="numato_ros" type="numato_ros" output="screen">
+    <node pkg="numato_ros" name="numato_ros" type="numato_ros.py" output="screen">
         <param name="port" value="$(arg driver_port)"/>
-        <param name="baud" value="9600"/>
-        <param name="rate" value="$(arg rate)"/>
-        <param name="timeout" value="0.002"/>
+        <param name="baud" value="$(arg baud)"/>
+        <param name="poll_rate" value="$(arg poll_rate)"/>
+        <param name="timeout" value="$(arg timeout)"/>
+        <param name="debounce_time" value="$(arg debounce_time)"/>
         <rosparam command="load" file="$(arg config_dir)" />
     </node>   
 </launch>
