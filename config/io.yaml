@@ -1,54 +1,55 @@
-numato:
-  inputs:
-    charging_limit_switch:
-      pin: 12
-      topic_name: "charging_limit_switch"
-      logic: "Normal"
-    rain_sensor:
-      pin: 7
-      topic_name: "rain_sensor"
-      logic: "Inverted"
-  
-  outputs:
-    mowing_led_indicator: 
-      pin: 30
-      topic_name: "mowing_led_indicator"
-      logic: "Normal"
-    buzzer: 
-      pin: 31
-      topic_name: "buzzer"
-      logic: "Normal"
 
-  constants:
-    rain_pull_up: 
-      pin: 6
-      topic_name: "rain_pull_up"
-      logic: "Normal"
-      value: true
-    rear_bumper_pull_up: 
-      pin: 15
-      topic_name: "rear_bumper_pull_up"
-      logic: "Normal"
-      value: true
-    front_bumper_pull_up: 
-      pin: 23
-      topic_name: "front_bumper_pull_up"
-      logic: "Normal"
-      value: true
-  
-  bumper_v2:
-    bumper:
-      topic_name: "bumper"
-      logic: "Inverted"
-      low_center_bumper: 17
-      low_right_bumper: 18
-      low_left_bumper: 20
-      high_center_bumper: 16
-      high_right_bumper: 19
-      high_left_bumper: 21
-      state_bumper: 22
-    rear_bumper:
-      topic_name: "rear_bumper"
-      logic: "Inverted"
-      low_right_bumper: 14
-      low_left_bumper: 13
+inputs:
+  charging_limit_switch:
+    pin: 12
+    topic_name: "charging_limit_switch"
+    logic: "Normal"
+    rate: 1.0
+  rain_sensor:
+    pin: 7
+    topic_name: "rain_sensor"
+    logic: "Inverted"
+    rate: 1.0
+
+outputs:
+  mowing_led_indicator: 
+    pin: 30
+    topic_name: "mowing_led_indicator"
+    logic: "Normal"
+  buzzer: 
+    pin: 31
+    topic_name: "buzzer"
+    logic: "Normal"
+
+# constants:
+#   rain_pull_up: 
+#     pin: 6
+#     logic: "Normal"
+#     value: true
+#   rear_bumper_pull_up: 
+#     pin: 15
+#     logic: "Normal"
+#     value: true
+#   front_bumper_pull_up: 
+#     pin: 23
+#     logic: "Normal"
+#     value: true
+
+bumper_v2:
+  bumper:
+    topic_name: "bumper"
+    logic: "Normal"
+    rate: 10.0
+    low_center_bumper: 17
+    low_right_bumper: 18
+    low_left_bumper: 20
+    high_center_bumper: 16
+    high_right_bumper: 19
+    high_left_bumper: 21
+    state_bumper: 22
+  rear_bumper:
+    topic_name: "rear_bumper"
+    logic: "Normal"
+    rate: 10.0
+    low_right_bumper: 13
+    low_left_bumper: 14
