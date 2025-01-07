@@ -1,8 +1,13 @@
 
-Add the following line to the ```/etc/udev/rules.d/99-custom.rules``
+Add the following line to the ```/etc/udev/rules.d/99-custom.rules```
 
 ```sh
-SUBSYSTEM=="tty",ACTION=="add", ATTRS{idVendor}=="2a19", ATTRS{idProduct}=="0802", MODE="0777", SYMLINK+="ttyNUMATO"
+SUBSYSTEM=="tty",ACTION=="add", ATTRS{idVendor}=="2a19", ATTRS{idProduct}=="0802", MODE="0777", ENV{ID_MM_DEVICE_IGNORE}="1", SYMLINK+="ttyNUMATO"
+```
+For Ubuntu 18 based systems, also edit the file ```/lib/systemd/system/ModemManager.service``` and change the ```filter-policy``` from ```strict``` to ```default```
+
+```sh
+ExecStart=/usr/sbin/ModemManager --filter-policy=default
 ```
 
 # Numato Driver ROS Node
