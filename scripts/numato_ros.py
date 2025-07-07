@@ -87,8 +87,17 @@ class SerialDevice(object):
             self.device.reset_input_buffer()
             self.device.reset_output_buffer()
             self.device.write(command)
-            result = self.device.read_until('>')
+            
             # Process result
+            count = 0            
+            result = ''
+            while not result.endswith('>') and count < 5:
+                result += self.device.read_until('>')
+                count = count + 1
+
+            if count == 5:
+                raise Exception("Failed to read until > delimiter")
+            
             if not result.startswith(command[:-1]):
                 rospy.logerr(logger + 'Response {} did not contain command {}'.format(str(result), command[:-1]))
                 return None
