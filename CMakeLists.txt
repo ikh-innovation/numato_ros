@@ -5,7 +5,7 @@ find_package(catkin REQUIRED COMPONENTS)
 catkin_package()
 
 catkin_install_python(PROGRAMS
-  scripts/numato_ros
+  scripts/numato_ros.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 install(DIRECTORY
